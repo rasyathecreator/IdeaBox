@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Ide struct {
@@ -13,10 +15,8 @@ type Ide struct {
 	Judul       string
 	Deskripsi   string
 	Kategori    string
-	Status      string
+	Tanggal     time.Time
 	VotePositif int
-	VoteNegatif int
-	Komentar    []string
 }
 
 var daftarIde []Ide
@@ -32,13 +32,14 @@ func input(prompt string) string {
 func tambahIde() {
 	judul := input("Judul ide: ")
 	deskripsi := input("Deskripsi singkat: ")
-	kategori := input("Kategori (Produk/Marketing/Fitur): ")
+	kategori := input("Kategori (Produk/Marketing/Jasa): ")
 	ideBaru := Ide{
-		ID:        idBerikutnya,
-		Judul:     judul,
-		Deskripsi: deskripsi,
-		Kategori:  kategori,
-		Status:    "Baru",
+		ID:          idBerikutnya,
+		Judul:       judul,
+		Deskripsi:   deskripsi,
+		Kategori:    kategori,
+		Tanggal:     time.Now(),
+		VotePositif: 0,
 	}
 	idBerikutnya++
 	daftarIde = append(daftarIde, ideBaru)
@@ -51,37 +52,9 @@ func lihatIde() {
 		return
 	}
 	for _, ide := range daftarIde {
-		fmt.Printf("[ID: %d] %s\nKategori: %s | Status: %s\nDeskripsi: %s\n👍 %d 👎 %d | Komentar: %d\n\n",
-			ide.ID, ide.Judul, ide.Kategori, ide.Status, ide.Deskripsi, ide.VotePositif, ide.VoteNegatif, len(ide.Komentar))
+		fmt.Printf("[ID: %d] %s\nKategori: %s | Tanggal: %s\nDeskripsi: %s\n👍 %d\n\n",
+			ide.ID, ide.Judul, ide.Kategori, ide.Tanggal.Format("02-01-2006"), ide.Deskripsi, ide.VotePositif)
 	}
-}
-
-func ubahStatus() {
-	idStr := input("Masukkan ID ide yang ingin diubah statusnya: ")
-	id, _ := strconv.Atoi(idStr)
-	for i := range daftarIde {
-		if daftarIde[i].ID == id {
-			status := input("Status baru (Baru/Ditinjau/Dikembangkan/Ditolak): ")
-			daftarIde[i].Status = status
-			fmt.Println("✅ Status berhasil diubah!\n")
-			return
-		}
-	}
-	fmt.Println("❌ ID tidak ditemukan.\n")
-}
-
-func tambahKomentar() {
-	idStr := input("Masukkan ID ide yang ingin dikomentari: ")
-	id, _ := strconv.Atoi(idStr)
-	for i := range daftarIde {
-		if daftarIde[i].ID == id {
-			komentar := input("Masukkan komentar Anda: ")
-			daftarIde[i].Komentar = append(daftarIde[i].Komentar, komentar)
-			fmt.Println("✅ Komentar ditambahkan!\n")
-			return
-		}
-	}
-	fmt.Println("❌ ID tidak ditemukan.\n")
 }
 
 func voteIde() {
@@ -89,12 +62,7 @@ func voteIde() {
 	id, _ := strconv.Atoi(idStr)
 	for i := range daftarIde {
 		if daftarIde[i].ID == id {
-			vote := input("Vote (1 untuk 👍, 0 untuk 👎): ")
-			if vote == "1" {
-				daftarIde[i].VotePositif++
-			} else {
-				daftarIde[i].VoteNegatif++
-			}
+			daftarIde[i].VotePositif++
 			fmt.Println("✅ Vote dicatat!\n")
 			return
 		}
@@ -102,61 +70,13 @@ func voteIde() {
 	fmt.Println("❌ ID tidak ditemukan.\n")
 }
 
-func hapusIde() {
-	idStr := input("Masukkan ID ide yang ingin dihapus: ")
-	id, _ := strconv.Atoi(idStr)
-	for i, ide := range daftarIde {
-		if ide.ID == id {
-			daftarIde = append(daftarIde[:i], daftarIde[i+1:]...)
-			fmt.Println("✅ Ide berhasil dihapus!\n")
-			return
-		}
-	}
-	fmt.Println("❌ ID tidak ditemukan.\n")
-}
-
-func filterIde() {
-	kategori := input("Masukkan kategori (Produk/Marketing/Fitur): ")
-	adaIde := false
-	for _, ide := range daftarIde {
-		if strings.EqualFold(ide.Kategori, kategori) {
-			fmt.Printf("[ID: %d] %s\nKategori: %s | Status: %s\nDeskripsi: %s\n👍 %d 👎 %d | Komentar: %d\n\n",
-				ide.ID, ide.Judul, ide.Kategori, ide.Status, ide.Deskripsi, ide.VotePositif, ide.VoteNegatif, len(ide.Komentar))
-			adaIde = true
-		}
-	}
-	if !adaIde {
-		fmt.Println("❌ Tidak ada ide dalam kategori tersebut.\n")
-	}
-}
-
-func lihatKomentar() {
-	idStr := input("Masukkan ID ide untuk melihat komentarnya: ")
-	id, _ := strconv.Atoi(idStr)
-	for _, ide := range daftarIde {
-		if ide.ID == id {
-			fmt.Printf("Komentar untuk ide \"%s\":\n", ide.Judul)
-			if len(ide.Komentar) == 0 {
-				fmt.Println("Belum ada komentar untuk ide ini.\n")
-			} else {
-				for i, komentar := range ide.Komentar {
-					fmt.Printf("%d. %s\n", i+1, komentar)
-				}
-				fmt.Println()
-			}
-			return
-		}
-	}
-	fmt.Println("❌ ID tidak ditemukan.\n")
-}
-
-func cariIde(kataKunci string) {
+func cariIdeSequential(kataKunci string) {
 	adaIde := false
 	for _, ide := range daftarIde {
 		if strings.Contains(strings.ToLower(ide.Judul), strings.ToLower(kataKunci)) ||
 			strings.Contains(strings.ToLower(ide.Deskripsi), strings.ToLower(kataKunci)) {
-			fmt.Printf("[ID: %d] %s\nKategori: %s | Status: %s\nDeskripsi: %s\n👍 %d 👎 %d | Komentar: %d\n\n",
-				ide.ID, ide.Judul, ide.Kategori, ide.Status, ide.Deskripsi, ide.VotePositif, ide.VoteNegatif, len(ide.Komentar))
+			fmt.Printf("[ID: %d] %s\nKategori: %s | Tanggal: %s\nDeskripsi: %s\n👍 %d\n\n",
+				ide.ID, ide.Judul, ide.Kategori, ide.Tanggal.Format("02-01-2006"), ide.Deskripsi, ide.VotePositif)
 			adaIde = true
 		}
 	}
@@ -165,19 +85,63 @@ func cariIde(kataKunci string) {
 	}
 }
 
+func cariIdeBinary(kataKunci string) {
+	sort.Slice(daftarIde, func(i, j int) bool {
+		return strings.ToLower(daftarIde[i].Judul) < strings.ToLower(daftarIde[j].Judul)
+	})
+	low, high := 0, len(daftarIde)-1
+	for low <= high {
+		mid := (low + high) / 2
+		if strings.Contains(strings.ToLower(daftarIde[mid].Judul), strings.ToLower(kataKunci)) {
+			fmt.Printf("[ID: %d] %s\nKategori: %s | Tanggal: %s\nDeskripsi: %s\n👍 %d\n\n",
+				daftarIde[mid].ID, daftarIde[mid].Judul, daftarIde[mid].Kategori, daftarIde[mid].Tanggal.Format("02-01-2006"), daftarIde[mid].Deskripsi, daftarIde[mid].VotePositif)
+			return
+		} else if strings.ToLower(daftarIde[mid].Judul) < strings.ToLower(kataKunci) {
+			low = mid + 1
+		} else {
+			high = mid - 1
+		}
+	}
+	fmt.Println("❌ Tidak ada ide yang cocok dengan kata kunci tersebut.\n")
+}
+
+func urutkanIdeBerdasarkanUpvote() {
+	sort.Slice(daftarIde, func(i, j int) bool {
+		return daftarIde[i].VotePositif > daftarIde[j].VotePositif
+	})
+	fmt.Println("✅ Ide telah diurutkan berdasarkan jumlah upvote!\n")
+}
+
+func lihatIdePopuler(periodHari int) {
+	batasWaktu := time.Now().AddDate(0, 0, -periodHari)
+	populer := []Ide{}
+	for _, ide := range daftarIde {
+		if ide.Tanggal.After(batasWaktu) {
+			populer = append(populer, ide)
+		}
+	}
+	if len(populer) == 0 {
+		fmt.Println("❌ Tidak ada ide yang populer dalam periode tersebut.\n")
+		return
+	}
+	urutkanIdeBerdasarkanUpvote()
+	for _, ide := range populer {
+		fmt.Printf("[ID: %d] %s\nKategori: %s | Tanggal: %s\nDeskripsi: %s\n👍 %d\n\n",
+			ide.ID, ide.Judul, ide.Kategori, ide.Tanggal.Format("02-01-2006"), ide.Deskripsi, ide.VotePositif)
+	}
+}
+
 func main() {
 	for {
 		fmt.Println("=== IdeaBox - Pengelolaan Ide Startup ===")
 		fmt.Println("1. Lihat Daftar Ide")
 		fmt.Println("2. Tambah Ide Baru")
-		fmt.Println("3. Ubah Status Ide")
-		fmt.Println("4. Komentar / Diskusi")
-		fmt.Println("5. Voting Ide")
-		fmt.Println("6. Hapus Ide")
-		fmt.Println("7. Filter Berdasarkan Kategori")
-		fmt.Println("8. Lihat Komentar")
-		fmt.Println("9. Cari Ide")
-		fmt.Println("10. Keluar")
+		fmt.Println("3. Voting Ide")
+		fmt.Println("4. Cari Ide (Sequential Search)")
+		fmt.Println("5. Cari Ide (Binary Search)")
+		fmt.Println("6. Urutkan Ide Berdasarkan Upvote")
+		fmt.Println("7. Lihat Ide Populer")
+		fmt.Println("8. Keluar")
 
 		pilih := input("Pilih menu: ")
 
@@ -187,21 +151,20 @@ func main() {
 		case "2":
 			tambahIde()
 		case "3":
-			ubahStatus()
-		case "4":
-			tambahKomentar()
-		case "5":
 			voteIde()
-		case "6":
-			hapusIde()
-		case "7":
-			filterIde()
-		case "8":
-			lihatKomentar()
-		case "9":
+		case "4":
 			kataKunci := input("Masukkan kata kunci pencarian: ")
-			cariIde(kataKunci)
-		case "10":
+			cariIdeSequential(kataKunci)
+		case "5":
+			kataKunci := input("Masukkan kata kunci pencarian: ")
+			cariIdeBinary(kataKunci)
+		case "6":
+			urutkanIdeBerdasarkanUpvote()
+		case "7":
+			periodHariStr := input("Masukkan periode hari untuk ide populer: ")
+			periodHari, _ := strconv.Atoi(periodHariStr)
+			lihatIdePopuler(periodHari)
+		case "8":
 			fmt.Println("👋 Terima kasih, sampai jumpa!")
 			return
 		default:
